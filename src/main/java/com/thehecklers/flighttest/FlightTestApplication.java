@@ -4,9 +4,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.boot.context.properties.ConstructorBinding;
+import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class FlightTestApplication {
 
     public static void main(String[] args) {
@@ -35,12 +41,16 @@ public class FlightTestApplication {
 @AllArgsConstructor
 class FTController {
     private final WebClient client;
+    private final Boundary boundary;
 
     @GetMapping
     Mono<String> testing123() {
         return client.get()
-                // Rough area covering Romania
-                .uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944")
+                //.uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944") (Romania, approximately)
+                .uri("/states/all?lamin=" + boundary.getLatMin() +
+                        "&lomin="+ boundary.getLonMin() +
+                        "&lamax=" + boundary.getLatMax() +
+                        "&lomax=" + boundary.getLonMax())
                 .retrieve()
                 .bodyToMono(String.class);
     }
@@ -51,8 +61,10 @@ class FTController {
                              @RequestParam(required = false) String tracklo,
                              @RequestParam(required = false) String trackhi) {
         return client.get()
-                // Rough area covering Romania
-                .uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944")
+                .uri("/states/all?lamin=" + boundary.getLatMin() +
+                        "&lomin="+ boundary.getLonMin() +
+                        "&lamax=" + boundary.getLatMax() +
+                        "&lomax=" + boundary.getLonMax())
                 .retrieve()
                 .bodyToFlux(PositionReport.class)
                 .flatMap(pr -> Flux.fromIterable(pr.getPositions()))
@@ -65,13 +77,16 @@ class FTController {
     @GetMapping("/countries")
     Flux<String> getCountriesOfCurrentFlights() {
         return client.get()
-                // Rough area covering Romania
-                .uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944")
+                .uri("/states/all?lamin=" + boundary.getLatMin() +
+                        "&lomin="+ boundary.getLonMin() +
+                        "&lamax=" + boundary.getLatMax() +
+                        "&lomax=" + boundary.getLonMax())
                 .retrieve()
                 .bodyToFlux(PositionReport.class)
                 .flatMap(pr -> Flux.fromIterable(pr.getPositions()))
-                .map(pos -> pos.getOrigin_country() + "\n");
-//                .log();
+                .map(pos -> pos.getOrigin_country() + "\n")
+                .distinct()
+                .sort();
     }
 }
 
@@ -169,3 +184,20 @@ record State(String icao24,
 			 boolean spi,
 			 int position_source) {}
 */
+
+@Value
+@ConfigurationProperties(prefix = "boundary")
+class Boundary {
+    float latMin, lonMin, latMax, lonMax;
+
+    @ConstructorBinding
+    public Boundary(@Name("latitude.minimum") float latMin,
+                    @Name("longitude.minimum") float lonMin,
+                    @Name("latitude.maximum") float latMax,
+                    @Name("longitude.maximum") float lonMax) {
+        this.latMin = latMin;
+        this.lonMin = lonMin;
+        this.latMax = latMax;
+        this.lonMax = lonMax;
+    }
+}
