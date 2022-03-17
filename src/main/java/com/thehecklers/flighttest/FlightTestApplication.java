@@ -37,6 +37,7 @@ public class FlightTestApplication {
     }
 }
 
+@Slf4j
 @RestController
 @AllArgsConstructor
 class FTController {
@@ -45,6 +46,8 @@ class FTController {
 
     @GetMapping
     Mono<String> testing123() {
+        log.info("Boundary: " + boundary.toString());
+
         return client.get()
                 //.uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944") (Romania, approximately)
                 .uri("/states/all?lamin=" + boundary.getLatMin() +
@@ -60,6 +63,7 @@ class FTController {
     Flux<Position> getStates(@RequestParam(required = false) String oc,
                              @RequestParam(required = false) String tracklo,
                              @RequestParam(required = false) String trackhi) {
+        // MH: Add logic to handle arc from < 360 to > 0, e.g. 271 - 89 for all northerly tracks from WNW to ENE
         return client.get()
                 .uri("/states/all?lamin=" + boundary.getLatMin() +
                         "&lomin="+ boundary.getLonMin() +
@@ -105,7 +109,6 @@ class PositionReport {
         for (String[] state : states) {
             Position p = createPositionFromArray(state);
             positions.add(p);
-            //System.out.println(p);
         }
     }
 
@@ -134,7 +137,7 @@ class PositionReport {
                 null == state[10] ? -1F : Float.parseFloat(state[10]),
                 null == state[11] ? -1F : Float.parseFloat(state[11]),
                 null == state[13] ? -1F : Float.parseFloat(state[13]),
-                state[14].trim(),
+                null == state[14] ? "" : state[14].trim(),
                 null != state[15] && Boolean.getBoolean(state[15]),
                 null == state[16] ? -1 : Integer.parseInt(state[16]));
     }
