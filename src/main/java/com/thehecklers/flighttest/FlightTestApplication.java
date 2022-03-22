@@ -58,8 +58,7 @@ class FTController {
                 .bodyToMono(String.class);
     }
 
-    @GetMapping("/states")
-//    Flux<PositionReport> getStates() {
+    @GetMapping("/positions")
     Flux<Position> getStates(@RequestParam(required = false) String oc,
                              @RequestParam(required = false) String tracklo,
                              @RequestParam(required = false) String trackhi) {
@@ -75,7 +74,6 @@ class FTController {
                 .filter(pos -> null == oc || pos.getOrigin_country().equalsIgnoreCase(oc))
                 .filter(pos -> (null == tracklo || null == trackhi) ||
                         (pos.getTrue_track() > Float.parseFloat(tracklo) && (pos.getTrue_track() < Float.parseFloat(trackhi))));
-//                                .log();
     }
 
     @GetMapping("/countries")
@@ -113,20 +111,6 @@ class PositionReport {
     }
 
     private Position createPositionFromArray(String[] state) {
-/*        log.info("> icao24: " + state[0] +
-                " callsign: " + state[1] +
-                " origin country: " + state[2] +
-                " longitude: " + state[5] +
-                " latitude: " + state[6] +
-                " baro altitude: " + state[7] +
-                " velocity: " + state[9] +
-                " true track: " + state[10] +
-                " vertical rate: " + state[11] +
-                " geo altitude: " + state[13] +
-                " squawk: " + state[14] +
-                " spi: " + state[15] +
-                " position source: " + state[16]);*/
-
         return new Position(state[0],
                 state[1].trim(),
                 state[2].trim(),
