@@ -1,11 +1,9 @@
 package com.thehecklers.flighttest;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -37,23 +35,27 @@ public class FlightTestApplication {
     }
 }
 
-@Slf4j
 @RestController
-@AllArgsConstructor
 class FTController {
     private final WebClient client;
     private final Boundary boundary;
+    private final String boundaryQuery;
+
+    public FTController(WebClient client, Boundary boundary) {
+        this.client = client;
+        this.boundary = boundary;
+
+        this.boundaryQuery = "?lamin=" + boundary.getLatMin() +
+                "&lomin="+ boundary.getLonMin() +
+                "&lamax=" + boundary.getLatMax() +
+                "&lomax=" + boundary.getLonMax();
+        // Sample data: "?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944" (Romania, approximately)
+    }
 
     @GetMapping
     Mono<String> testing123() {
-        log.info("Boundary: " + boundary.toString());
-
         return client.get()
-                //.uri("/states/all?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944") (Romania, approximately)
-                .uri("/states/all?lamin=" + boundary.getLatMin() +
-                        "&lomin="+ boundary.getLonMin() +
-                        "&lamax=" + boundary.getLatMax() +
-                        "&lomax=" + boundary.getLonMax())
+                .uri("/states/all" + boundaryQuery)
                 .retrieve()
                 .bodyToMono(String.class);
     }
@@ -64,35 +66,28 @@ class FTController {
                              @RequestParam(required = false) String trackhi) {
         // MH: Add logic to handle arc from < 360 to > 0, e.g. 271 - 89 for all northerly tracks from WNW to ENE
         return client.get()
-                .uri("/states/all?lamin=" + boundary.getLatMin() +
-                        "&lomin="+ boundary.getLonMin() +
-                        "&lamax=" + boundary.getLatMax() +
-                        "&lomax=" + boundary.getLonMax())
+                .uri("/states/all" + boundaryQuery)
                 .retrieve()
                 .bodyToFlux(PositionReport.class)
                 .flatMap(pr -> Flux.fromIterable(pr.getPositions()))
-                .filter(pos -> null == oc || pos.getOrigin_country().equalsIgnoreCase(oc))
+                .filter(pos -> null == oc || pos.origin_country().equalsIgnoreCase(oc))
                 .filter(pos -> (null == tracklo || null == trackhi) ||
-                        (pos.getTrue_track() > Float.parseFloat(tracklo) && (pos.getTrue_track() < Float.parseFloat(trackhi))));
+                        (pos.true_track() > Float.parseFloat(tracklo) && (pos.true_track() < Float.parseFloat(trackhi))));
     }
 
     @GetMapping("/countries")
     Flux<String> getCountriesOfCurrentFlights() {
         return client.get()
-                .uri("/states/all?lamin=" + boundary.getLatMin() +
-                        "&lomin="+ boundary.getLonMin() +
-                        "&lamax=" + boundary.getLatMax() +
-                        "&lomax=" + boundary.getLonMax())
+                .uri("/states/all" + boundaryQuery)
                 .retrieve()
                 .bodyToFlux(PositionReport.class)
                 .flatMap(pr -> Flux.fromIterable(pr.getPositions()))
-                .map(pos -> pos.getOrigin_country() + "\n")
+                .map(pos -> pos.origin_country() + "\n")
                 .distinct()
                 .sort();
     }
 }
 
-@Slf4j
 @Data
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -135,29 +130,8 @@ class PositionReport {
     }
 }
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-class Position {
-    private String icao24,
-            callsign,
-            origin_country;
-    private float longitude,
-            latitude,
-            baro_altitude,
-            velocity,
-            true_track,
-            vertical_rate,
-            geo_altitude;
-    private String squawk;
-    private boolean spi;
-    private int position_source;
-}
-
-/*
-@JsonIgnoreProperties(ignoreUnknown = true)
-record State(String icao24,
+record Position(String icao24,
 			 String callsign,
 			 String origin_country,
 			 float longitude,
@@ -170,7 +144,6 @@ record State(String icao24,
 			 String squawk,
 			 boolean spi,
 			 int position_source) {}
-*/
 
 @Value
 @ConfigurationProperties(prefix = "boundary")
