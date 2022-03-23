@@ -49,7 +49,6 @@ class FTController {
                 "&lomin="+ boundary.getLonMin() +
                 "&lamax=" + boundary.getLatMax() +
                 "&lomax=" + boundary.getLonMax();
-        // Sample data: "?lamin=43.5423&lomin=20.1857&lamax=48.0706&lomax=29.4944" (Romania, approximately)
     }
 
     @GetMapping
@@ -64,7 +63,6 @@ class FTController {
     Flux<Position> getStates(@RequestParam(required = false) String oc,
                              @RequestParam(required = false) String tracklo,
                              @RequestParam(required = false) String trackhi) {
-        // MH: Add logic to handle arc from < 360 to > 0, e.g. 271 - 89 for all northerly tracks from WNW to ENE
         return client.get()
                 .uri("/states/all" + boundaryQuery)
                 .retrieve()
